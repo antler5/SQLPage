@@ -90,11 +90,23 @@
                 {{~#with (parse_json this)}}
                     {{#if (or (or this.title this.icon) this.image)}}
                         <li class="nav-item{{#if this.submenu}} dropdown{{/if}}">
-                            <a class="nav-link {{#if this.submenu}}dropdown-toggle{{/if}}" href="{{#if this.link}}{{this.link}}{{else}}#{{/if}}"
-                                {{~#if this.submenu}} data-bs-toggle="dropdown" data-bs-auto-close="outside" {{/if~}}
-                                {{~#if tooltip}} data-bs-toggle="tooltip" data-bs-placement="top" title="{{tooltip}}"{{/if}}
-                                {{#if this.target}}target="{{this.target}}"{{/if}}
-                                role="button"
+                            <a class="
+                                   {{~#if this.button~}}
+                                       btn text-wrap me-1
+                                       {{~#if this.color}} btn-{{this.color}}{{/if}}
+                                       {{~#if this.size}} btn-{{this.size}}{{/if}}
+                                       {{~#if this.outline}} btn-outline-{{this.outline}}{{/if}}
+                                       {{~#if this.shape}} btn-{{this.shape}}{{/if}}
+                                       {{~#if this.narrow}} btn-icon{{/if}}
+                                   {{~else~}}
+                                       nav-link
+                                   {{~/if~}}
+                                   {{#if this.submenu}}dropdown-toggle{{/if}}"
+                               href="{{#if this.link}}{{this.link}}{{else}}#{{/if}}"
+                               {{~#if this.submenu}} data-bs-toggle="dropdown" data-bs-auto-close="outside" {{/if~}}
+                               {{~#if tooltip}} data-bs-toggle="tooltip" data-bs-placement="top" title="{{tooltip}}"{{/if}}
+                               {{#if this.target}}target="{{this.target}}"{{/if}}
+                               role="button"
                             >
                                 {{~#if this.image~}}
                                     <span {{~#if this.title}} class="me-1"{{/if}}>
