@@ -14,6 +14,9 @@ pub struct Cli {
     /// The directory where the .sql files are located.
     #[clap(short, long)]
     pub web_root: Option<PathBuf>,
+    /// Additional directories to search for .sql files. May be provided multiple times.
+    #[clap(short = 'W', long, action = clap::ArgAction::Append)]
+    pub extra_web_root: Option<Vec<PathBuf>>,
     /// The directory where the sqlpage.json configuration, the templates, and the migrations are located.
     #[clap(short = 'd', long)]
     pub config_dir: Option<PathBuf>,
@@ -49,6 +52,14 @@ impl AppConfig {
                 web_root
             );
             config.web_root.clone_from(web_root);
+        }
+        if let Some(extra_web_roots) = &cli.extra_web_root {
+            log::debug!(
+                "Adding extra web roots from the command line: {:?}",
+                extra_web_roots
+            );
+            config.extra_web_roots.append(&mut extra_web_roots.clone());
+            log::debug!("Extra web roots: {:?}", config.extra_web_roots);
         }
         if let Some(config_dir) = &cli.config_dir {
             config.configuration_directory.clone_from(config_dir);
@@ -176,6 +187,10 @@ pub struct AppConfig {
     /// The directory where the .sql files are located. Defaults to the current directory.
     #[serde(default = "default_web_root")]
     pub web_root: PathBuf,
+
+    /// Additional directories to search for .sql files. Defaults to none.
+    #[serde(default)]
+    pub extra_web_roots: Vec<PathBuf>,
 
     /// The directory where the sqlpage configuration file is located. Defaults to `./sqlpage`.
     #[serde(default = "configuration_directory")]
