@@ -1,7 +1,7 @@
 use crate::app_config::AppConfig;
 use crate::file_cache::AsyncFromStrWithState;
 use crate::template_helpers::register_all_helpers;
-use crate::{AppState, FileCache, TEMPLATES_DIR};
+use crate::{AppState, FileCache, TEMPLATES_DIR, ALT_TEMPLATES_DIR};
 use async_trait::async_trait;
 use handlebars::{template::TemplateElement, Handlebars, Template};
 use include_dir::{include_dir, Dir};
@@ -116,15 +116,32 @@ impl AllTemplates {
         name: &str,
     ) -> anyhow::Result<Arc<SplitTemplate>> {
         use anyhow::Context;
+
         let mut path: PathBuf =
             PathBuf::with_capacity(TEMPLATES_DIR.len() + 1 + name.len() + ".handlebars".len());
         path.push(TEMPLATES_DIR);
         path.push(name);
         path.set_extension("handlebars");
-        self.split_templates
-            .get(app_state, &path)
-            .await
-            .with_context(|| format!("Unable to get the component '{name}'"))
+
+        let mut alt_path: PathBuf =
+            PathBuf::with_capacity(ALT_TEMPLATES_DIR.len() + 1 + name.len() + ".handlebars".len());
+        alt_path.push(ALT_TEMPLATES_DIR);
+        alt_path.push(name);
+        alt_path.set_extension("handlebars");
+
+        let template = self.split_templates
+            .get(app_state, &alt_path)
+            .await;
+
+        match template {
+            Ok(_) => template,
+            Err(_) => {
+                self.split_templates
+                    .get(app_state, &alt_path)
+                    .await
+                    .with_context(|| format!("Unable to get the component '{name}'"))
+            }
+        }
     }
 }
 

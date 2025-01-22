@@ -92,6 +92,7 @@ use webserver::Database;
 /// When a template is requested, it is looked up in `sqlpage/templates/component_name.handlebars` in the database,
 /// or in `$SQLPAGE_CONFIGURATION_DIRECTORY/templates/component_name.handlebars` in the filesystem.
 pub const TEMPLATES_DIR: &str = "sqlpage/templates/";
+pub const ALT_TEMPLATES_DIR: &str = "../specter/sqlpage/templates/";
 pub const MIGRATIONS_DIR: &str = "migrations";
 pub const ON_CONNECT_FILE: &str = "on_connect.sql";
 pub const ON_RESET_FILE: &str = "on_reset.sql";
