@@ -15,19 +15,25 @@ pub(crate) struct FileSystem {
 }
 
 impl FileSystem {
-    pub async fn init(local_root: impl Into<PathBuf>, db: &Database) -> Self {
+    pub async fn init(local_root: impl Into<PathBuf>, db: Option<&Database>) -> Self {
         Self {
             local_root: local_root.into(),
-            db_fs_queries: match DbFsQueries::init(db).await {
-                Ok(q) => Some(q),
-                Err(e) => {
-                    log::debug!(
-                        "Using local filesystem only, could not initialize on-database filesystem. \
-                        You can host sql files directly in your database by creating the following table: \n\
-                        {} \n\
-                        The error while trying to use the database file system is: {e:#}",
-                        DbFsQueries::get_create_table_sql(db.connection.any_kind())
-                    );
+            db_fs_queries: {
+                if let Some(db) = db {
+                    match DbFsQueries::init(db).await {
+                        Ok(q) => Some(q),
+                        Err(e) => {
+                            log::debug!(
+                                "Using local filesystem only, could not initialize on-database filesystem. \
+                                You can host sql files directly in your database by creating the following table: \n\
+                                {} \n\
+                                The error while trying to use the database file system is: {e:#}",
+                                DbFsQueries::get_create_table_sql(db.connection.any_kind())
+                            );
+                            None
+                        }
+                    }
+                } else {
                     None
                 }
             },
