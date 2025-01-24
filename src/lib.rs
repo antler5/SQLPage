@@ -88,6 +88,8 @@ use std::path::{Path, PathBuf};
 use templates::AllTemplates;
 use webserver::Database;
 
+use futures_util::future;
+
 /// `TEMPLATES_DIR` is the directory where .handlebars files are stored
 /// When a template is requested, it is looked up in `sqlpage/templates/component_name.handlebars` in the database,
 /// or in `$SQLPAGE_CONFIGURATION_DIRECTORY/templates/component_name.handlebars` in the filesystem.
@@ -101,6 +103,7 @@ pub struct AppState {
     all_templates: AllTemplates,
     sql_file_cache: FileCache<ParsedSqlFile>,
     file_system: FileSystem,
+    extra_file_systems: Vec<FileSystem>,
     config: AppConfig,
 }
 
@@ -112,7 +115,17 @@ impl AppState {
     pub async fn init_with_db(config: &AppConfig, db: Database) -> anyhow::Result<Self> {
         let all_templates = AllTemplates::init(config)?;
         let mut sql_file_cache = FileCache::new();
-        let file_system = FileSystem::init(&config.web_root, &db).await;
+        let file_system = FileSystem::init(&config.web_root, Some(&db)).await;
+        let mut extra_file_systems = vec![];
+        if !config.extra_web_roots.is_empty() {
+            let futures: Vec<_> = config
+                .extra_web_roots
+                .iter()
+                .map(|s| FileSystem::init(s, None))
+                .collect();
+
+            extra_file_systems = future::join_all(futures).await;
+        }
         sql_file_cache.add_static(
             PathBuf::from("index.sql"),
             ParsedSqlFile::new(&db, include_str!("../index.sql"), Path::new("index.sql")),
@@ -122,6 +135,7 @@ impl AppState {
             all_templates,
             sql_file_cache,
             file_system,
+            extra_file_systems,
             config: config.clone(),
         })
     }
