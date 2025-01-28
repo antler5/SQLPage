@@ -109,14 +109,18 @@ impl FileSystem {
         if priviledged {
             // Templates requests are always made to the static TEMPLATES_DIR, because this is where they are stored in the database
             // but when serving them from the filesystem, we need to serve them from the `SQLPAGE_CONFIGURATION_DIRECTORY/templates` directory
+            // under this file-system's local root.
             if let Ok(template_path) = path.strip_prefix(TEMPLATES_DIR) {
-                let normalized = [
-                    &app_state.config.configuration_directory,
-                    Path::new("templates"),
-                    template_path,
-                ]
-                .iter()
-                .collect();
+                let stripped_path = &app_state
+                    .config
+                    .configuration_directory
+                    .strip_prefix(&app_state.config.web_root)
+                    .unwrap_or(path);
+                let local_root_path =
+                    Path::new(&self.local_root).join(stripped_path.file_name().unwrap_or_default());
+                let normalized = [&local_root_path, Path::new("templates"), template_path]
+                    .iter()
+                    .collect();
                 log::trace!("Normalizing template path {path:?} to {normalized:?}");
                 return Ok(normalized);
             }
