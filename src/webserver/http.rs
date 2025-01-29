@@ -508,7 +508,14 @@ fn default_headers(app_state: &web::Data<AppState>) -> middleware::DefaultHeader
     let server_header = format!("{} v{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
     let mut headers = middleware::DefaultHeaders::new().add(("Server", server_header));
     if let Some(csp) = &app_state.config.content_security_policy {
-        headers = headers.add(("Content-Security-Policy", csp.as_str()));
+        headers = headers.add((
+            "Content-Security-Policy",
+            format!(
+                "{} {}",
+                csp.as_str(),
+                &app_state.config.extra_csp_terms.join(" ")
+            ),
+        ));
     }
     headers
 }

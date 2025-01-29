@@ -275,6 +275,8 @@ pub struct AppConfig {
     /// Content-Security-Policy header to send to the client.
     /// If not set, a default policy allowing scripts from the same origin is used and from jsdelivr.net
     pub content_security_policy: Option<String>,
+    #[serde(default)]
+    pub extra_csp_terms: Vec<String>,
 
     /// Whether `sqlpage.fetch` should load trusted certificates from the operating system's certificate store
     /// By default, it loads Mozilla's root certificates that are embedded in the `SQLPage` binary, or the ones pointed to by the
