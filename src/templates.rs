@@ -115,16 +115,25 @@ impl AllTemplates {
         app_state: &AppState,
         name: &str,
     ) -> anyhow::Result<Arc<SplitTemplate>> {
-        use anyhow::Context;
+        use anyhow::anyhow;
         let mut path: PathBuf =
             PathBuf::with_capacity(TEMPLATES_DIR.len() + 1 + name.len() + ".handlebars".len());
         path.push(TEMPLATES_DIR);
         path.push(name);
-        path.set_extension("handlebars");
-        self.split_templates
-            .get(app_state, &path)
-            .await
-            .with_context(|| format!("Unable to get the component '{name}'"))
+        let mut errors: Vec<anyhow::Error> = Vec::with_capacity(2);
+        for ext in ["handlebars", "hbs"] {
+            path.set_extension(ext);
+            let result = self.split_templates
+                .get(app_state, &path)
+                .await;
+            match result {
+                Ok(_) => { return result; },
+                Err(err) => { errors.push(err); },
+            };
+        }
+
+        // let mut errors: Vec<&anyhow::Error> = errors.iter().filter_map(|r| r.as_ref().err()).collect();
+        Err(anyhow!("{:?}", errors).context("Unable to get the component '{name}'"))
     }
 }
 
