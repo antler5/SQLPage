@@ -17,6 +17,10 @@ pub struct Cli {
     /// Additional directories to search for .sql files. May be provided multiple times.
     #[clap(short = 'W', long, action = clap::ArgAction::Append)]
     pub extra_web_root: Option<Vec<PathBuf>>,
+    /// Additional directories to search for migrations. May be provided multiple times.
+    /// Will be applied in reverse-specification order, top-level last.
+    #[clap(short = 'M', long, action = clap::ArgAction::Append)]
+    pub extra_migration_dirs: Option<Vec<PathBuf>>,
     /// The directory where the sqlpage.json configuration, the templates, and the migrations are located.
     #[clap(short = 'd', long)]
     pub config_dir: Option<PathBuf>,
@@ -60,6 +64,19 @@ impl AppConfig {
             );
             config.extra_web_roots.append(&mut extra_web_roots.clone());
             log::debug!("Extra web roots: {:?}", config.extra_web_roots);
+        }
+        if let Some(extra_migration_dirs) = &cli.extra_migration_dirs {
+            log::debug!(
+                "Adding extra migration directories from the command line: {:?}",
+                extra_migration_dirs
+            );
+            config
+                .extra_migration_directories
+                .append(&mut extra_migration_dirs.clone());
+            log::debug!(
+                "Extra migration directories: {:?}",
+                config.extra_migration_directories
+            );
         }
         if let Some(config_dir) = &cli.config_dir {
             config.configuration_directory.clone_from(config_dir);
@@ -191,6 +208,10 @@ pub struct AppConfig {
     /// Additional directories to search for .sql files. Defaults to none.
     #[serde(default)]
     pub extra_web_roots: Vec<PathBuf>,
+
+    /// Additional directories to search for migrations. Defaults to none.
+    #[serde(default)]
+    pub extra_migration_directories: Vec<PathBuf>,
 
     /// The directory where the sqlpage configuration file is located. Defaults to `./sqlpage`.
     #[serde(default = "configuration_directory")]

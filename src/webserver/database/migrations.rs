@@ -8,47 +8,75 @@ use sqlx::migrate::Migration;
 use sqlx::migrate::Migrator;
 
 pub async fn apply(config: &crate::app_config::AppConfig, db: &Database) -> anyhow::Result<()> {
-    let migrations_dir = config.configuration_directory.join(MIGRATIONS_DIR);
-    if !migrations_dir.exists() {
-        log::info!(
-            "Not applying database migrations because '{}' does not exist",
-            migrations_dir.display()
-        );
-        return Ok(());
+    let mut dirs = Vec::with_capacity(config.extra_migration_directories.len() + 1);
+    dirs.push(config.configuration_directory.join(MIGRATIONS_DIR));
+    dirs.extend(config.extra_migration_directories.clone());
+    let dirs: Vec<&std::path::PathBuf> = dirs.iter().rev().collect();
+    let dirs_len = dirs.len();
+
+    for dir in &dirs {
+        if !dir.exists() {
+            log::info!(
+                "Not applying database migrations from '{}' because it does not exist",
+                dir.display()
+            );
+        } else {
+            let migrator = Migrator::new(dir.to_path_buf())
+                .await
+                .with_context(|| migration_err("preparing the database migration"))?;
+
+            if migrator.migrations.is_empty() {
+                if dirs_len == 1 {
+                    log::debug!("No migrations found in {}. \
+                    You can specify database operations to apply when the server first starts by creating files \
+                    in {MIGRATIONS_DIR}/<VERSION>_<DESCRIPTION>.sql \
+                    where <VERSION> is a number and <DESCRIPTION> is a short string.", dir.display());
+                } else {
+                    log::info!(
+                        "Not applying database migrations from '{}' because it is empty",
+                        dir.display()
+                    );
+                }
+            } else {
+                log::debug!("Applying database migrations from '{}'", dir.display());
+                _apply(config, db, dir, migrator).await?
+            }
+        }
     }
-    log::debug!("Applying migrations from '{}'", migrations_dir.display());
-    let migrator = Migrator::new(migrations_dir.clone())
-        .await
-        .with_context(|| migration_err("preparing the database migration"))?;
-    if migrator.migrations.is_empty() {
-        log::debug!("No migration found in {}. \
-        You can specify database operations to apply when the server first starts by creating files \
-        in {MIGRATIONS_DIR}/<VERSION>_<DESCRIPTION>.sql \
-        where <VERSION> is a number and <DESCRIPTION> is a short string.", migrations_dir.display());
-        return Ok(());
-    }
+    Ok(())
+}
+
+pub async fn _apply(
+    config: &crate::app_config::AppConfig,
+    db: &Database,
+    dir: &std::path::PathBuf,
+    mut migrator: Migrator,
+) -> anyhow::Result<()> {
     log::info!("Found {} migrations:", migrator.migrations.len());
     for m in migrator.iter() {
         log::info!("\t{}", DisplayMigration(m));
     }
-    migrator.run(&db.connection).await.map_err(|err| {
-        match err {
-            MigrateError::Execute(n, source) => {
-                let migration = migrator.iter().find(|&m| m.version == n).unwrap();
-                let source_file =
-                    migrations_dir.join(format!("{:04}_{}.sql", n, migration.description));
-                display_db_error(&source_file, &migration.sql, source).context(format!(
-                    "Failed to apply {} migration {}",
-                    db,
-                    DisplayMigration(migration)
-                ))
+    migrator
+        .set_ignore_missing(!config.extra_migration_directories.is_empty())
+        .run(&db.connection)
+        .await
+        .map_err(|err| {
+            match err {
+                MigrateError::Execute(n, source) => {
+                    let migration = migrator.iter().find(|&m| m.version == n).unwrap();
+                    let source_file = dir.join(format!("{:04}_{}.sql", n, migration.description));
+                    display_db_error(&source_file, &migration.sql, source).context(format!(
+                        "Failed to apply {} migration {}",
+                        db,
+                        DisplayMigration(migration)
+                    ))
+                }
+                source => anyhow::Error::new(source),
             }
-            source => anyhow::Error::new(source),
-        }
-        .context(format!(
-            "Failed to apply database migrations from {MIGRATIONS_DIR:?}"
-        ))
-    })?;
+            .context(format!(
+                "Failed to apply database migrations from {MIGRATIONS_DIR:?}"
+            ))
+        })?;
     Ok(())
 }
 
