@@ -47,8 +47,33 @@ impl FileSystem {
         since: DateTime<Utc>,
         priviledged: bool,
     ) -> anyhow::Result<bool> {
-        let local_path = self.safe_local_path(app_state, path, priviledged)?;
-        let local_result = file_modified_since_local(&local_path, since).await;
+        let mut local_result = None;
+        for fs in std::iter::once(self).chain(&app_state.extra_file_systems) {
+            let local_path = fs.safe_local_path(app_state, path, priviledged)?;
+            match file_modified_since_local(&local_path, since).await {
+                Ok(b) => {
+                    local_result = Some(Ok(b));
+                    break;
+                }
+                Err(e) if e.kind() == ErrorKind::NotFound => {
+                    continue;
+                }
+                Err(e) => {
+                    local_result = Some(Err(e));
+                    break;
+                }
+            }
+        }
+
+        let local_result = match local_result {
+            Some(Ok(b)) => Ok(b),
+            Some(Err(e)) => Err(e),
+            None => Err(std::io::Error::new(
+                ErrorKind::NotFound,
+                "Unable to find local file {path:?}",
+            )),
+        };
+
         match (local_result, &self.db_fs_queries) {
             (Ok(modified), _) => Ok(modified),
             (Err(e), Some(db_fs)) if e.kind() == ErrorKind::NotFound => {
@@ -83,9 +108,34 @@ impl FileSystem {
         path: &Path,
         priviledged: bool,
     ) -> anyhow::Result<Vec<u8>> {
-        let local_path = self.safe_local_path(app_state, path, priviledged)?;
-        log::debug!("Reading file {path:?} from {local_path:?}");
-        let local_result = tokio::fs::read(&local_path).await;
+        let mut local_result = None;
+        for fs in std::iter::once(self).chain(&app_state.extra_file_systems) {
+            let local_path = fs.safe_local_path(app_state, path, priviledged)?;
+            log::debug!("Reading file {path:?} from {local_path:?}");
+            match tokio::fs::read(&local_path).await {
+                Ok(f) => {
+                    local_result = Some(Ok(f));
+                    break;
+                }
+                Err(e) if e.kind() == ErrorKind::NotFound => {
+                    continue;
+                }
+                Err(e) => {
+                    local_result = Some(Err(e));
+                    break;
+                }
+            }
+        }
+
+        let local_result = match local_result {
+            Some(Ok(f)) => Ok(f),
+            Some(Err(e)) => Err(e),
+            None => Err(std::io::Error::new(
+                ErrorKind::NotFound,
+                "Unable to find local file {path:?}",
+            )),
+        };
+
         match (local_result, &self.db_fs_queries) {
             (Ok(f), _) => Ok(f),
             (Err(e), Some(db_fs)) if e.kind() == ErrorKind::NotFound => {
@@ -152,10 +202,16 @@ impl FileSystem {
         app_state: &AppState,
         path: &Path,
     ) -> anyhow::Result<bool> {
-        let local_exists = match self.safe_local_path(app_state, path, false) {
-            Ok(safe_path) => tokio::fs::try_exists(safe_path).await?,
-            Err(e) => return Err(e),
-        };
+        let mut local_exists = false;
+        for fs in std::iter::once(self).chain(&app_state.extra_file_systems) {
+            if match fs.safe_local_path(app_state, path, false) {
+                Ok(safe_path) => tokio::fs::try_exists(safe_path).await?,
+                Err(e) => return Err(e),
+            } {
+                local_exists = true;
+                break;
+            }
+        }
 
         // If not in local fs and we have db_fs, check database
         if !local_exists {

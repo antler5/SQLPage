@@ -139,7 +139,10 @@ impl<T: AsyncFromStrWithState> FileCache<T> {
         }
         // Read lock is released
         log::trace!("Loading and parsing {:?}", path);
-        let file_contents = FileCache::<T>::read_file_contents(app_state, path, privileged).await;
+        let file_contents = app_state
+            .file_system
+            .read_to_string(app_state, path, privileged)
+            .await;
 
         let parsed = match file_contents {
             Ok(contents) => {
@@ -183,38 +186,6 @@ impl<T: AsyncFromStrWithState> FileCache<T> {
                 Err(e)
             }
         }
-    }
-
-    /// Loads a file from the file system, checking both primary and extra web-roots.
-    async fn read_file_contents(
-        app_state: &AppState,
-        path: &Path,
-        privileged: bool,
-    ) -> anyhow::Result<String> {
-        let mut file_contents = None;
-
-        for fs in std::iter::once(&app_state.file_system).chain(&app_state.extra_file_systems) {
-            match fs.read_to_string(app_state, path, privileged).await {
-                Ok(contents) => {
-                    file_contents = Some(contents);
-                    break;
-                }
-                Err(e)
-                    if e.downcast_ref()
-                        == Some(&ErrorWithStatus {
-                            status: StatusCode::NOT_FOUND,
-                        }) =>
-                {
-                    // Not fatal, could be in another file-system.
-                    log::trace!("{path:?} not found.");
-                }
-                Err(e) => log::error!("Error reading file from filesystem: {}", e),
-            }
-        }
-
-        file_contents.ok_or(anyhow::Error::new(ErrorWithStatus {
-            status: actix_web::http::StatusCode::NOT_FOUND,
-        }))
     }
 }
 
