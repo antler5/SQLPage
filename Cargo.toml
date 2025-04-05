@@ -63,6 +63,7 @@ rustls-native-certs = "0.7.0"
 awc = { version = "3", features = ["rustls-0_22-webpki-roots"] }
 clap = { version = "4.5.17", features = ["derive"] }
 tokio-util = "0.7.12"
+uuid7 = { version = "1.1.0", features = ["serde"], optional = true }
 
 [build-dependencies]
 awc = { version = "3", features = ["rustls-0_22-webpki-roots"] }

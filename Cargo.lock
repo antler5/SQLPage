@@ -1408,6 +1408,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "fstr"
+version = "0.2.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "17e4d821c226048ee351e9f7cf8554b5f226ca41b35ffe632eddaa3a8934da2f"
+
+[[package]]
 name = "futures"
 version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3263,6 +3269,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tokio-util",
+ "uuid7",
 ]
 
 [[package]]
@@ -3862,6 +3869,18 @@ name = "uuid"
 version = "1.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "458f7a779bf54acc9f347480ac654f68407d3aab21269a6e3c9f922acd9e2da9"
+
+[[package]]
+name = "uuid7"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1191ed4cd2c6a2e1d16a617f0e70649eafd68178633042d31c631eb6b47dc316"
+dependencies = [
+ "fstr",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "serde",
+]
 
 [[package]]
 name = "vcpkg"

@@ -51,6 +51,8 @@ super::function_definition_macro::sqlpage_functions! {
     version();
     request_body((&RequestInfo));
     request_body_base64((&RequestInfo));
+
+    uuid7();
 }
 
 /// Returns the password from the HTTP basic auth header, if present.
@@ -751,4 +753,17 @@ async fn headers(request: &RequestInfo) -> String {
 
 async fn client_ip(request: &RequestInfo) -> Option<String> {
     Some(request.client_ip?.to_string())
+}
+
+async fn uuid7() -> anyhow::Result<String> {
+    #[cfg(not(feature = "uuid7"))]
+    {
+        log::error!("#[cfg(uuid7)] not enabled");
+        anyhow::bail!(ErrorWithStatus {
+            status: actix_web::http::StatusCode::INTERNAL_SERVER_ERROR,
+        });
+    }
+
+    #[cfg(feature = "uuid7")]
+    return Ok(uuid7::uuid7().into())
 }
